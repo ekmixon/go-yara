@@ -47,7 +47,7 @@ func (r *Rules) ScanFileDescriptor(fd uintptr, flags ScanFlags, timeout time.Dur
 		C.int(fd),
 		C.int(flags),
 		C.YR_CALLBACK_FUNC(C.rules_callback),
-		unsafe.Pointer(id),
+		unsafe.Pointer(&id),
 		C.int(timeout/time.Second)))
 	r.keepAlive()
 	return
@@ -60,7 +60,7 @@ func (r *Rules) Write(wr io.Writer) (err error) {
 
 	stream := (*C.YR_STREAM)(C.malloc((C.sizeof_YR_STREAM)))
 	defer C.free(unsafe.Pointer(stream))
-	stream.user_data = unsafe.Pointer(id)
+	stream.user_data = unsafe.Pointer(&id)
 	stream.write = C.YR_STREAM_WRITE_FUNC(C.streamWrite)
 
 	err = newError(C.yr_rules_save_stream(r.cptr, stream))
@@ -76,7 +76,7 @@ func ReadRules(rd io.Reader) (*Rules, error) {
 
 	stream := (*C.YR_STREAM)(C.malloc((C.sizeof_YR_STREAM)))
 	defer C.free(unsafe.Pointer(stream))
-	stream.user_data = unsafe.Pointer(id)
+	stream.user_data = unsafe.Pointer(&id)
 	stream.read = C.YR_STREAM_READ_FUNC(C.streamRead)
 
 	if err := newError(C.yr_rules_load_stream(stream,
