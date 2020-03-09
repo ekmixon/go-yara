@@ -1,4 +1,4 @@
-// Copyright © 2015-2017 Hilko Bengen <bengen@hilluzination.de>
+// Copyright © 2015-2019 Hilko Bengen <bengen@hilluzination.de>
 // All rights reserved.
 //
 // Use of this source code is governed by the license that can be
@@ -6,11 +6,7 @@
 
 package yara
 
-import (
-	"github.com/hillu/go-yara/internal/callbackdata"
-)
-
-var callbackData = callbackdata.MakePool(256)
+var callbackData = makecbPool(256)
 
 func toint64(number interface{}) int64 {
 	switch number.(type) {

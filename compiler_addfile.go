@@ -1,4 +1,4 @@
-// Copyright © 2018 Hilko Bengen <bengen@hilluzination.de>
+// Copyright © 2015-2019 Hilko Bengen <bengen@hilluzination.de>
 // All rights reserved.
 //
 // Use of this source code is governed by the license that can be
@@ -31,7 +31,13 @@ import (
 
 // AddFile compiles rules from a file. Rules are added to the
 // specified namespace.
+//
+// If this function returns an error, the Compiler object will become
+// unusable.
 func (c *Compiler) AddFile(file *os.File, namespace string) (err error) {
+	if c.cptr.errors != 0 {
+		return errors.New("Compiler cannot be used after parse error")
+	}
 	fd := C.dup(C.int(file.Fd()))
 	fh, err := C.fdopen(fd, C.CString("r"))
 	if err != nil {
