@@ -22,13 +22,16 @@ func initialize() error {
 	return newError(C.yr_initialize())
 }
 
-// Finalize releases all the resources allocated by the library. It should be
-// called when your program is about to exit. Calling Finalize is not strictly
-// required as the program is going to die anyways, but it's highly recommended
-// because memory profiling tools can detect and report memory leaks if you
-// don't. The recommended practice is calling it as a defered function in your
-// program's main:
-//  defer yara.Finalize()
+// Finalize releases all the resources allocated by the YARA library.
+// It should be called by the program when it no longer needs YARA,
+// e.g. just before the program exits. It is not strictly necessary to
+// call Finalize because the allocated memory will be freed on program
+// exit; however, explicitly-freed resources will not show up as a
+// leak in memory profiling tools.
+//
+// A good practice is calling Finalize as a deferred function in the
+// program's main function:
+//     defer yara.Finalize()
 func Finalize() error {
 	return newError(C.yr_finalize())
 }
