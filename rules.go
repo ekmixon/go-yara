@@ -41,11 +41,18 @@ type MatchRule struct {
 	Strings   []MatchString
 }
 
-// A MatchString represents a string declared and matched in a rule.
+// A MatchString represents a string declared and matched in a rule. Name is
+// the string's identifier. Offset is the offset within the file where the match
+// was found. Data contains the portion of the file that matches, but it will be
+// truncated to the amount specified with SetMaxMatchData, which by default is
+// 512 bytes (this default value is controlled by the DEFAULT_MAX_MATCH_DATA
+// macro defined in libyara.h). Length is the actual length of the match, and
+// can be higher than len(Data).
 type MatchString struct {
 	Name   string
 	Offset uint64
 	Data   []byte
+	Length uint64
 }
 
 // ScanFlags are used to tweak the behavior of Scan* functions.

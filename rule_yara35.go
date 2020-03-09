@@ -12,7 +12,17 @@ package yara
 import "C"
 import "unsafe"
 
-// Data returns the blob of data associated with the string match
+// Data returns the blob of data associated with the match. Returns nil if
+// YARA was configured for not storing the matching data by passing zero to
+// SetMaxMatchData.
 func (m *Match) Data() []byte {
+	if m.cptr.data_length == 0 {
+		return nil
+	}
 	return C.GoBytes(unsafe.Pointer(m.cptr.data), C.int(m.cptr.data_length))
+}
+
+// Length returns the length of the match.
+func (m *Match) Length() int64 {
+	return int64(m.cptr.match_length)
 }
