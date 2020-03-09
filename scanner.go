@@ -26,6 +26,7 @@ int scanCallbackFunc(int, void*, void*);
 import "C"
 import (
 	"errors"
+	"fmt"
 	"runtime"
 	"time"
 	"unsafe"
@@ -42,6 +43,42 @@ type Scanner struct {
 
 type scanner struct {
 	cptr *C.YR_SCANNER
+}
+
+// An ScanError is returning by all scan functions implemented by Scanner.
+type ScanError struct {
+	Code             int
+	Namespace        string
+	RuleIdentifier   string
+	StringIdentifier string
+}
+
+func (e ScanError) Error() (errorString string) {
+	if e.Namespace != "" && e.RuleIdentifier != "" {
+		errorString = fmt.Sprintf("%s caused by rule \"%s:%s\"",
+			errorCodeToString(e.Code), e.Namespace, e.RuleIdentifier)
+		if e.StringIdentifier != "" {
+			errorString += fmt.Sprintf(" string %s", e.StringIdentifier)
+		}
+	} else {
+		errorString = errorCodeToString(e.Code)
+	}
+	return errorString
+}
+
+func (s *Scanner) newScanError(code C.int) error {
+	if code == C.ERROR_SUCCESS {
+		return nil
+	}
+	err := ScanError{Code: int(code)}
+	if rule := s.GetLastErrorRule(); rule != nil {
+		err.RuleIdentifier = rule.Identifier()
+		err.Namespace = rule.Namespace()
+	}
+	if str := s.GetLastErrorString(); str != nil {
+		err.StringIdentifier = str.Identifier()
+	}
+	return err
 }
 
 // NewScanner creates a YARA scanner.
@@ -145,8 +182,7 @@ func (s *Scanner) ScanMem(buf []byte) (err error) {
 	if len(buf) > 0 {
 		ptr = (*C.uint8_t)(unsafe.Pointer(&(buf[0])))
 	}
-
-	err = newError(C.yr_scanner_scan_mem(
+	err = s.newScanError(C.yr_scanner_scan_mem(
 		s.cptr,
 		ptr,
 		C.size_t(len(buf))))
@@ -167,8 +203,7 @@ func (s *Scanner) ScanMem2(buf []byte) (matches []MatchRule, err error) {
 func (s *Scanner) ScanFile(filename string) (err error) {
 	cfilename := C.CString(filename)
 	defer C.free(unsafe.Pointer(cfilename))
-
-	err = newError(C.yr_scanner_scan_file(
+	err = s.newScanError(C.yr_scanner_scan_file(
 		s.cptr,
 		cfilename,
 	))
@@ -187,7 +222,7 @@ func (s *Scanner) ScanFile2(filename string) (matches []MatchRule, err error) {
 
 // ScanFileDescriptor scans a file using the scanner.
 func (s *Scanner) ScanFileDescriptor(fd uintptr) (err error) {
-	err = newError(C.yr_scanner_scan_fd(
+	err = s.newScanError(C.yr_scanner_scan_fd(
 		s.cptr,
 		C.int(fd),
 	))
@@ -206,7 +241,7 @@ func (s *Scanner) ScanFileDescriptor2(fd uintptr) (matches []MatchRule, err erro
 
 // ScanProc scans a live process using the scanner.
 func (s *Scanner) ScanProc(pid int) (err error) {
-	err = newError(C.yr_scanner_scan_proc(
+	err = s.newScanError(C.yr_scanner_scan_proc(
 		s.cptr,
 		C.int(pid),
 	))
@@ -221,4 +256,22 @@ func (s *Scanner) ScanProc2(pid int) (matches []MatchRule, err error) {
 	}
 	s.unsetCallback()
 	return
+}
+
+// GetLastErrorRule returns the rule that caused the last scanner error.
+func (s *Scanner) GetLastErrorRule() *Rule {
+	r := C.yr_scanner_last_error_rule(s.cptr)
+	if r == nil {
+		return nil
+	}
+	return &Rule{r}
+}
+
+// GetLastErrorString returns the string that caused the last scanner error.
+func (s *Scanner) GetLastErrorString() *String {
+	str := C.yr_scanner_last_error_string(s.cptr)
+	if str == nil {
+		return nil
+	}
+	return &String{str}
 }
