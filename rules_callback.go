@@ -20,32 +20,39 @@ import (
 // (*Rules).Scan*WithCallback methods.
 type ScanCallback interface{}
 
+
+// ScanContext is a struct passed to the ScanCallbackX functions.
+type ScanContext struct{
+	cptr *C.YR_SCAN_CONTEXT
+}
+
+
 // ScanCallbackMatch is used to record rules that matched during a
 // scan. The RuleMatching method corresponds to YARA's
 // CALLBACK_MSG_RULE_MATCHING message.
 type ScanCallbackMatch interface {
-	RuleMatching(*Rule) (bool, error)
+	RuleMatching(*ScanContext, *Rule) (bool, error)
 }
 
 // ScanCallbackNoMatch is used to record rules that did not match
 // during a scan. The RuleNotMatching method corresponds to YARA's
 // CALLBACK_MSG_RULE_NOT_MATCHING mssage.
 type ScanCallbackNoMatch interface {
-	RuleNotMatching(*Rule) (bool, error)
+	RuleNotMatching(*ScanContext, *Rule) (bool, error)
 }
 
 // ScanCallbackFinished is used to signal that a scan has finished.
 // The ScanFinished method corresponds to YARA's
 // CALLBACK_MSG_SCAN_FINISHED message.
 type ScanCallbackFinished interface {
-	ScanFinished() (bool, error)
+	ScanFinished(*ScanContext) (bool, error)
 }
 
 // ScanCallbackModuleImport is used to provide data to a YARA module.
 // The ImportModule method corresponds to YARA's
 // CALLBACK_MSG_IMPORT_MODULE message.
 type ScanCallbackModuleImport interface {
-	ImportModule(string) ([]byte, bool, error)
+	ImportModule(*ScanContext, string) ([]byte, bool, error)
 }
 
 // ScanCallbackModuleImportFinished can be used to free resources that
@@ -53,7 +60,7 @@ type ScanCallbackModuleImport interface {
 // ModuleImported method corresponds to YARA's
 // CALLBACK_MSG_MODULE_IMPORTED message.
 type ScanCallbackModuleImportFinished interface {
-	ModuleImported(*Object) (bool, error)
+	ModuleImported(*ScanContext, *Object) (bool, error)
 }
 
 // scanCallbackContainer is used by (*Rules).Scan* methods and
@@ -76,33 +83,34 @@ func (c *scanCallbackContainer) destroy() {
 }
 
 //export scanCallbackFunc
-func scanCallbackFunc(message C.int, messageData, userData unsafe.Pointer) C.int {
+func scanCallbackFunc(scanContext unsafe.Pointer, message C.int, messageData, userData unsafe.Pointer) C.int {
 	cbc, ok := callbackData.Get(userData).(*scanCallbackContainer)
 	if !ok {
 		return C.CALLBACK_ERROR
 	}
+	ctx := &ScanContext{cptr: (*C.YR_SCAN_CONTEXT)(scanContext)}
 	var abort bool
 	var err error
 	switch message {
 	case C.CALLBACK_MSG_RULE_MATCHING:
 		if c, ok := cbc.ScanCallback.(ScanCallbackMatch); ok {
 			r := (*C.YR_RULE)(messageData)
-			abort, err = c.RuleMatching(&Rule{r})
+			abort, err = c.RuleMatching(ctx, &Rule{r})
 		}
 	case C.CALLBACK_MSG_RULE_NOT_MATCHING:
 		if c, ok := cbc.ScanCallback.(ScanCallbackNoMatch); ok {
 			r := (*C.YR_RULE)(messageData)
-			abort, err = c.RuleNotMatching(&Rule{r})
+			abort, err = c.RuleNotMatching(ctx, &Rule{r})
 		}
 	case C.CALLBACK_MSG_SCAN_FINISHED:
 		if c, ok := cbc.ScanCallback.(ScanCallbackFinished); ok {
-			abort, err = c.ScanFinished()
+			abort, err = c.ScanFinished(ctx)
 		}
 	case C.CALLBACK_MSG_IMPORT_MODULE:
 		if c, ok := cbc.ScanCallback.(ScanCallbackModuleImport); ok {
 			mi := (*C.YR_MODULE_IMPORT)(messageData)
 			var buf []byte
-			if buf, abort, err = c.ImportModule(C.GoString(mi.module_name)); len(buf) == 0 {
+			if buf, abort, err = c.ImportModule(ctx, C.GoString(mi.module_name)); len(buf) == 0 {
 				break
 			}
 			cbuf := C.calloc(1, C.size_t(len(buf)))
@@ -116,7 +124,7 @@ func scanCallbackFunc(message C.int, messageData, userData unsafe.Pointer) C.int
 	case C.CALLBACK_MSG_MODULE_IMPORTED:
 		if c, ok := cbc.ScanCallback.(ScanCallbackModuleImportFinished); ok {
 			obj := (*C.YR_OBJECT)(messageData)
-			abort, err = c.ModuleImported(&Object{obj})
+			abort, err = c.ModuleImported(ctx, &Object{obj})
 		}
 	}
 
@@ -135,7 +143,7 @@ type MatchRules []MatchRule
 
 // RuleMatching implements the ScanCallbackMatch interface for
 // MatchRules.
-func (mr *MatchRules) RuleMatching(r *Rule) (abort bool, err error) {
+func (mr *MatchRules) RuleMatching(ctx *ScanContext, r *Rule) (abort bool, err error) {
 	metas := r.Metas()
 	// convert int to int32 for code that relies on previous behavior
 	for s := range metas {
@@ -148,7 +156,7 @@ func (mr *MatchRules) RuleMatching(r *Rule) (abort bool, err error) {
 		Namespace: r.Namespace(),
 		Tags:      r.Tags(),
 		Meta:      metas,
-		Strings:   r.getMatchStrings(),
+		Strings:   r.getMatchStrings(ctx),
 	})
 	return
 }

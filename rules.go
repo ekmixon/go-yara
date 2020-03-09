@@ -56,7 +56,7 @@ const (
 	// when not necessary.
 	ScanFlagsFastMode = C.SCAN_FLAGS_FAST_MODE
 	// ScanFlagsProcessMemory causes the scanned data to be
-	// interpreted like live, in-prcess memory rather than an on-disk
+	// interpreted like live, in-process memory rather than an on-disk
 	// file.
 	ScanFlagsProcessMemory = C.SCAN_FLAGS_PROCESS_MEMORY
 )
@@ -225,7 +225,7 @@ func (r *Rules) DefineVariable(identifier string, value interface{}) (err error)
 // GetRules returns a slice of rule objects that are part of the
 // ruleset
 func (r *Rules) GetRules() (rv []Rule) {
-	for p := unsafe.Pointer(r.cptr.rules_list_head); (*C.YR_RULE)(p).g_flags&C.RULE_GFLAGS_NULL == 0; p = unsafe.Pointer(uintptr(p) + unsafe.Sizeof(*r.cptr.rules_list_head)) {
+	for p := unsafe.Pointer(r.cptr.rules_list_head); (*C.YR_RULE)(p).flags&C.RULE_FLAGS_NULL == 0; p = unsafe.Pointer(uintptr(p) + unsafe.Sizeof(*r.cptr.rules_list_head)) {
 		rv = append(rv, Rule{(*C.YR_RULE)(p)})
 	}
 	return
