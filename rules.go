@@ -55,19 +55,6 @@ type MatchString struct {
 	Length uint64
 }
 
-// ScanFlags are used to tweak the behavior of Scan* functions.
-type ScanFlags int
-
-const (
-	// ScanFlagsFastMode avoids multiple matches of the same string
-	// when not necessary.
-	ScanFlagsFastMode = C.SCAN_FLAGS_FAST_MODE
-	// ScanFlagsProcessMemory causes the scanned data to be
-	// interpreted like live, in-process memory rather than an on-disk
-	// file.
-	ScanFlagsProcessMemory = C.SCAN_FLAGS_PROCESS_MEMORY
-)
-
 // ScanMem scans an in-memory buffer using the ruleset, returning
 // matches via a list of MatchRule objects.
 func (r *Rules) ScanMem(buf []byte, flags ScanFlags, timeout time.Duration) (matches []MatchRule, err error) {

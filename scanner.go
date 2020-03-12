@@ -32,7 +32,29 @@ import (
 	"unsafe"
 )
 
-// Scanner contains a YARA scanner
+// ScanFlags are used to tweak the scanner's behaviour. They are also used
+// with rule's ScanX functions.
+type ScanFlags int
+
+const (
+	// ScanFlagsFastMode avoids multiple matches of the same string
+	// when not necessary.
+	ScanFlagsFastMode = C.SCAN_FLAGS_FAST_MODE
+	// ScanFlagsProcessMemory causes the scanned data to be
+	// interpreted like live, in-process memory rather than an on-disk
+	// file.
+	ScanFlagsProcessMemory = C.SCAN_FLAGS_PROCESS_MEMORY
+	// Flags for indicating that the callback function should for matching and
+	// not matching rules. Both flags can be used together for receiving
+	// notification about matching and not matching rules, or they can be used
+	// alone for receiving notifications about either case. If none of these
+	// two flags are specified the default behaviour is reporting both matching
+	// and not matching rules.
+	ScanFlagsReportRulesMatching    = C.SCAN_FLAGS_REPORT_RULES_MATCHING
+	ScanFlagsReportRulesNotMatching = C.SCAN_FLAGS_REPORT_RULES_NOT_MATCHING
+)
+
+// Scanner represents a YARA scanner.
 type Scanner struct {
 	*scanner
 	// The Scanner struct has to hold a pointer to the rules
