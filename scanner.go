@@ -21,6 +21,15 @@ int _yr_scanner_scan_fd(
 #else
 #define _yr_scanner_scan_fd yr_scanner_scan_fd
 #endif
+
+YR_PROFILING_INFO* profiling_info(YR_PROFILING_INFO* p, int n)
+{
+  if (p[n].rule == NULL)
+    return NULL;
+  return &p[n];
+}
+
+
 int scanCallbackFunc(int, void*, void*);
 */
 import "C"
@@ -296,4 +305,24 @@ func (s *Scanner) GetLastErrorString() *String {
 		return nil
 	}
 	return &String{str}
+}
+
+type ProfilingInfo struct {
+	rule *Rule
+	cost uint64
+}
+
+func (s *Scanner) GetProfilingInfo(n int) (result []ProfilingInfo) {
+	pi := C.yr_scanner_get_profiling_info(s.cptr)
+	if pi == nil {
+		return
+	}
+	for i := 0; i < n; i++ {
+		p := C.profiling_info(pi, C.int(i))
+		if p == nil {
+			break
+		}
+		result = append(result, ProfilingInfo{&Rule{cptr: p.rule}, uint64(p.cost)})
+	}
+	return
 }
