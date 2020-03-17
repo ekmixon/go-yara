@@ -141,8 +141,6 @@ func (r *Rule) MetaList() (metas []Meta) {
 		id := C.GoString(cid)
 		var val interface{}
 		switch cptr._type {
-		case C.META_TYPE_NULL:
-			val = nil
 		case C.META_TYPE_STRING:
 			val = C.GoString(cstr)
 		case C.META_TYPE_INTEGER:
