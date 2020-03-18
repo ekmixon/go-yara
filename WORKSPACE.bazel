@@ -16,9 +16,9 @@ go_register_toolchains()
 
 git_repository(
     name = "com_github_virustotal_yara",
-    commit = "44f0c7faad1f9698c7670a10995434e31a9df41d",
     remote = "https://github.com/VirusTotal/yara",
-    shallow_since = "1584521022 +0100"
+    commit = "0b76cfb67f4e0619143cd01279b5e58cee883cac",
+    shallow_since = "1584526386 +0100"
 )
 
 load("@com_github_virustotal_yara//:bazel/yara_deps.bzl", "yara_deps")

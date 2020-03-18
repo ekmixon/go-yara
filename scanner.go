@@ -308,8 +308,8 @@ func (s *Scanner) GetLastErrorString() *String {
 }
 
 type ProfilingInfo struct {
-	rule *Rule
-	cost uint64
+	Rule *Rule
+	Cost uint64
 }
 
 func (s *Scanner) GetProfilingInfo(n int) (result []ProfilingInfo) {
