@@ -15,11 +15,27 @@ import (
 // Error is an implementation of the error interface that includes the YARA
 // error code. All functions in this package return this type of errors.
 type Error struct {
+	// YARA error code.
 	Code int
+	// Namespace in which the error occurred, if applicable. It can be empty.
+	Namespace string
+	// Rule in which the error occurred, if applicable. It can be empty.
+	RuleIdentifier string
+	// String in which the error occurred, if applicable. It can be empty.
+	StringIdentifier string
 }
 
-func (e Error) Error() string {
-	return errorCodeToString(e.Code)
+func (e Error) Error() (errorString string) {
+	if e.Namespace != "" && e.RuleIdentifier != "" {
+		errorString = fmt.Sprintf("%s caused by rule \"%s:%s\"",
+			errorCodeToString(e.Code), e.Namespace, e.RuleIdentifier)
+		if e.StringIdentifier != "" {
+			errorString += fmt.Sprintf(" string %s", e.StringIdentifier)
+		}
+	} else {
+		errorString = errorCodeToString(e.Code)
+	}
+	return errorString
 }
 
 func errorCodeToString(errorCode int) string {
@@ -30,10 +46,10 @@ func errorCodeToString(errorCode int) string {
 }
 
 func newError(code C.int) error {
-	if code == 0 {
+	if code == ERROR_SUCCESS {
 		return nil
 	}
-	return Error{int(code)}
+	return Error{Code: int(code)}
 }
 
 const (

@@ -35,7 +35,6 @@ int scanCallbackFunc(int, void*, void*);
 import "C"
 import (
 	"errors"
-	"fmt"
 	"runtime"
 	"time"
 	"unsafe"
@@ -76,32 +75,11 @@ type scanner struct {
 	cptr *C.YR_SCANNER
 }
 
-// An ScanError is returning by all scan functions implemented by Scanner.
-type ScanError struct {
-	Code             int
-	Namespace        string
-	RuleIdentifier   string
-	StringIdentifier string
-}
-
-func (e ScanError) Error() (errorString string) {
-	if e.Namespace != "" && e.RuleIdentifier != "" {
-		errorString = fmt.Sprintf("%s caused by rule \"%s:%s\"",
-			errorCodeToString(e.Code), e.Namespace, e.RuleIdentifier)
-		if e.StringIdentifier != "" {
-			errorString += fmt.Sprintf(" string %s", e.StringIdentifier)
-		}
-	} else {
-		errorString = errorCodeToString(e.Code)
-	}
-	return errorString
-}
-
 func (s *Scanner) newScanError(code C.int) error {
 	if code == C.ERROR_SUCCESS {
 		return nil
 	}
-	err := ScanError{Code: int(code)}
+	err := Error{Code: int(code)}
 	if rule := s.GetLastErrorRule(); rule != nil {
 		err.RuleIdentifier = rule.Identifier()
 		err.Namespace = rule.Namespace()
