@@ -290,6 +290,8 @@ type ProfilingInfo struct {
 	Cost uint64
 }
 
+// GetProfilingInfo returns a list of ProfilingInfo structures containing the
+// profiling information for the slowest n rules.
 func (s *Scanner) GetProfilingInfo(n int) (result []ProfilingInfo) {
 	pi := C.yr_scanner_get_profiling_info(s.cptr)
 	if pi == nil {
@@ -303,4 +305,13 @@ func (s *Scanner) GetProfilingInfo(n int) (result []ProfilingInfo) {
 		result = append(result, ProfilingInfo{&Rule{cptr: p.rule}, uint64(p.cost)})
 	}
 	return
+}
+
+// ResetProfilingInfo resets the profiling information accumulated by the scanner
+// so far. When you scan multiple files/buffer with the same scanner the profiling
+// information is not automatically reset after each scan, instead it gets
+// accumulated. If you want to reset profiling information so that the counters
+// start a zero again you must call this function.
+func (s *Scanner) ResetProfilingInfo() {
+	C.yr_scanner_reset_profiling_info(s.cptr)
 }

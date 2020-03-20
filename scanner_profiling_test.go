@@ -29,4 +29,10 @@ func TestProfiling(t *testing.T) {
 			t.Error("The least expensive rule should be test1")
 		}
 	}
+
+	s.ResetProfilingInfo()
+
+	if s.GetProfilingInfo(1)[0].Cost != 0 {
+		t.Error("Profiling information should be 0 after caling ResetProfilingInfo")
+	}
 }
