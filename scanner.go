@@ -22,7 +22,7 @@ int _yr_scanner_scan_fd(
 #define _yr_scanner_scan_fd yr_scanner_scan_fd
 #endif
 
-YR_PROFILING_INFO* profiling_info(YR_PROFILING_INFO* p, int n)
+YR_RULE_PROFILING_INFO* profiling_info(YR_RULE_PROFILING_INFO* p, int n)
 {
   if (p[n].rule == NULL)
     return NULL;

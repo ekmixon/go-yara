@@ -22,10 +22,10 @@ func TestProfiling(t *testing.T) {
 		t.Errorf("ScanFile: %s", err)
 	}
 	for i, p := range s.GetProfilingInfo(10) {
-		if i == 0 && p.rule.Identifier() != "test2" {
+		if i == 0 && p.Rule.Identifier() != "test2" {
 			t.Error("The most expensive rule should be test2")
 		}
-		if i == 1 && p.rule.Identifier() != "test1" {
+		if i == 1 && p.Rule.Identifier() != "test1" {
 			t.Error("The least expensive rule should be test1")
 		}
 	}
