@@ -39,6 +39,21 @@ func TestScannerSimpleMatch(t *testing.T) {
 	t.Logf("Matches: %+v", m)
 }
 
+func TestScannerSimpleMatch2(t *testing.T) {
+	s := makeScanner(t,
+		"rule test : tag1 { meta: author = \"Matt Blewitt\" strings: $a = \"abc\" fullword condition: $a }")
+	if m, err := s.ScanMem2([]byte(" abc ")); err != nil {
+		t.Errorf("ScanMem: %s", err)
+	} else if len(m) != 1 {
+		t.Errorf("ScanMem: wanted 1 match, got %d", len(m))
+	}
+	if m, err := s.ScanMem2([]byte(" def ")); err != nil {
+		t.Errorf("ScanMem: %s", err)
+	} else if len(m) != 0 {
+		t.Errorf("ScanMem: wanted 0 match, got %d", len(m))
+	}
+}
+
 func TestScannerSimpleFileMatch(t *testing.T) {
 	s := makeScanner(t,
 		"rule test : tag1 { meta: author = \"Matt Blewitt\" strings: $a = \"abc\" fullword condition: $a }")

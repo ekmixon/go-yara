@@ -166,6 +166,7 @@ func (s *Scanner) unsetCallback() {
 	if s.cb != nil {
 		callbackData.Get(s.cb).(*scanCallbackContainer).destroy()
 		callbackData.Delete(s.cb)
+		s.cb = nil
 	}
 }
 
