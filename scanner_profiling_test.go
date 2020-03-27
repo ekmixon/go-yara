@@ -31,8 +31,11 @@ func TestProfiling(t *testing.T) {
 	}
 
 	s.ResetProfilingInfo()
+	pi := s.GetProfilingInfo(1)
 
-	if s.GetProfilingInfo(1)[0].Cost != 0 {
+	if len(pi) == 0 {
+		t.Error("Expecting one item in the result from GetProfilingInfo. Was YARA built with --enable-profiling?")
+	} else if s.GetProfilingInfo(1)[0].Cost != 0 {
 		t.Error("Profiling information should be 0 after caling ResetProfilingInfo")
 	}
 }
