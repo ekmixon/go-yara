@@ -11,6 +11,20 @@ package yara
 #include <yara.h>
 
 int scanCallbackFunc(int, void*, void*);
+
+// get_rules returns pointers to the RULE objects for a ruleset, using
+// YARA's macro-based implementation.
+static void get_rules(YR_RULES *ruleset, const YR_RULE *rules[], int *n) {
+	const YR_RULE *rule;
+	int i = 0;
+	yr_rules_foreach(ruleset, rule) {
+		if (i < *n)
+			rules[i] = rule;
+		i++;
+	}
+	*n = i;
+	return;
+}
 */
 import "C"
 import (
@@ -218,9 +232,18 @@ func (r *Rules) DefineVariable(identifier string, value interface{}) (err error)
 
 // GetRules returns a slice of rule objects that are part of the
 // ruleset
-func (r *Rules) GetRules() (rv []Rule) {
-	for p := unsafe.Pointer(r.cptr.rules_table); (*C.YR_RULE)(p).flags&C.RULE_FLAGS_NULL == 0; p = unsafe.Pointer(uintptr(p) + unsafe.Sizeof(*r.cptr.rules_table)) {
-		rv = append(rv, Rule{(*C.YR_RULE)(p)})
+// GetRules returns a slice of rule objects that are part of the
+// ruleset.
+func (r *Rules) GetRules() (rules []Rule) {
+	var size C.int
+	C.get_rules(r.cptr, nil, &size)
+	if size == 0 {
+		return
+	}
+	ptrs := make([]*C.YR_RULE, int(size))
+	C.get_rules(r.cptr, &ptrs[0], &size)
+	for _, ptr := range ptrs {
+		rules = append(rules, Rule{ptr})
 	}
 	return
 }
