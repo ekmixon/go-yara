@@ -20,12 +20,26 @@ import (
 // (*Rules).Scan*WithCallback methods.
 type ScanCallback interface{}
 
-
 // ScanContext is a struct passed to the ScanCallbackX functions.
-type ScanContext struct{
+type ScanContext struct {
 	cptr *C.YR_SCAN_CONTEXT
 }
 
+// GetMatchStrings returns a list of MatchString structures with the matches
+// found for the rule r during the scan represented by the ScanContext.
+func (sc *ScanContext) GetMatchStrings(r *Rule) (matchstrings []MatchString) {
+	for _, s := range r.Strings() {
+		for _, m := range s.Matches(sc) {
+			matchstrings = append(matchstrings, MatchString{
+				Name:   s.Identifier(),
+				Offset: uint64(m.Offset()),
+				Data:   m.Data(),
+				Length: uint64(m.Length()),
+			})
+		}
+	}
+	return
+}
 
 // ScanCallbackMatch is used to record rules that matched during a
 // scan. The RuleMatching method corresponds to YARA's
@@ -36,7 +50,7 @@ type ScanCallbackMatch interface {
 
 // ScanCallbackNoMatch is used to record rules that did not match
 // during a scan. The RuleNotMatching method corresponds to YARA's
-// CALLBACK_MSG_RULE_NOT_MATCHING mssage.
+// CALLBACK_MSG_RULE_NOT_MATCHING message.
 type ScanCallbackNoMatch interface {
 	RuleNotMatching(*ScanContext, *Rule) (bool, error)
 }
@@ -156,7 +170,7 @@ func (mr *MatchRules) RuleMatching(ctx *ScanContext, r *Rule) (abort bool, err e
 		Namespace: r.Namespace(),
 		Tags:      r.Tags(),
 		Meta:      metas,
-		Strings:   r.getMatchStrings(ctx),
+		Strings:   ctx.GetMatchStrings(r),
 	})
 	return
 }
