@@ -309,8 +309,6 @@ func (r *Rules) DefineVariable(identifier string, value interface{}) (err error)
 
 // GetRules returns a slice of rule objects that are part of the
 // ruleset
-// GetRules returns a slice of rule objects that are part of the
-// ruleset.
 func (r *Rules) GetRules() (rules []Rule) {
 	var size C.int
 	C.get_rules(r.cptr, nil, &size)
