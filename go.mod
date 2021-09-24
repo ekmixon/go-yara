@@ -1,3 +1,3 @@
-module github.com/VirusTotal/go-yara/v2
+module github.com/VirusTotal/go-yara/v4
 
-go 1.13
+go 1.15

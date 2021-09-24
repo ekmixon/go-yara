@@ -1,4 +1,4 @@
-// Copyright © 2015-2019 Hilko Bengen <bengen@hilluzination.de>
+// Copyright © 2015-2020 Hilko Bengen <bengen@hilluzination.de>
 // All rights reserved.
 //
 // Use of this source code is governed by the license that can be
@@ -16,17 +16,22 @@ package yara
 
 #include <yara.h>
 
+
 // rule_identifier is a union accessor function.
 static const char* rule_identifier(YR_RULE* r) {
 	return r->identifier;
 }
 
 void compilerCallback(int, char*, int, YR_RULE*, char*, void*);
+char* includeCallback(char*, char*, char*, void*);
+void freeCallback(char*, void*);
 */
 import "C"
 import (
 	"errors"
 	"fmt"
+	"os"
+	"reflect"
 	"runtime"
 	"unsafe"
 )
@@ -59,16 +64,15 @@ func compilerCallback(errorLevel C.int, filename *C.char, linenumber C.int,
 // A Compiler encapsulates the YARA compiler that transforms rules
 // into YARA's internal, binary form which in turn is used for
 // scanning files or memory blocks.
+//
+// Since this type contains a C pointer to a YR_COMPILER structure
+// that may be automatically freed, it should not be copied.
 type Compiler struct {
-	*compiler
 	Errors   []CompilerMessage
 	Warnings []CompilerMessage
 	// used for include callback
 	callbackData unsafe.Pointer
-}
-
-type compiler struct {
-	cptr *C.YR_COMPILER
+	cptr         *C.YR_COMPILER
 }
 
 // A CompilerMessage contains an error or warning message produced
@@ -85,13 +89,19 @@ func NewCompiler() (*Compiler, error) {
 	if err := newError(C.yr_compiler_create(&yrCompiler)); err != nil {
 		return nil, err
 	}
-	c := &Compiler{compiler: &compiler{cptr: yrCompiler}}
-	runtime.SetFinalizer(c.compiler, (*compiler).finalize)
+	c := &Compiler{cptr: yrCompiler}
+	runtime.SetFinalizer(c, (*Compiler).Destroy)
 	return c, nil
 }
 
-func (c *compiler) finalize() {
-	C.yr_compiler_destroy(c.cptr)
+// Destroy destroys the YARA data structure representing a compiler.
+//
+// It should not be necessary to call this method directly.
+func (c *Compiler) Destroy() {
+	if c.cptr != nil {
+		C.yr_compiler_destroy(c.cptr)
+		c.cptr = nil
+	}
 	runtime.SetFinalizer(c, nil)
 }
 
@@ -102,16 +112,34 @@ func (c *Compiler) setCallbackData(ptr unsafe.Pointer) {
 	c.callbackData = ptr
 }
 
-// Destroy destroys the YARA data structure representing a compiler.
-// Since a Finalizer for the underlying YR_COMPILER structure is
-// automatically set up on creation, it should not be necessary to
-// explicitly call this method.
-func (c *Compiler) Destroy() {
-	c.setCallbackData(nil)
-	if c.compiler != nil {
-		c.compiler.finalize()
-		c.compiler = nil
+// AddFile compiles rules from a file. Rules are added to the
+// specified namespace.
+//
+// If this function returns an error, the Compiler object will become
+// unusable.
+func (c *Compiler) AddFile(file *os.File, namespace string) (err error) {
+	if c.cptr.errors != 0 {
+		return errors.New("Compiler cannot be used after parse error")
 	}
+	var ns *C.char
+	if namespace != "" {
+		ns = C.CString(namespace)
+		defer C.free(unsafe.Pointer(ns))
+	}
+	filename := C.CString(file.Name())
+	defer C.free(unsafe.Pointer(filename))
+	id := callbackData.Put(c)
+	defer callbackData.Delete(id)
+	C.yr_compiler_set_callback(c.cptr, C.YR_COMPILER_CALLBACK_FUNC(C.compilerCallback), id)
+	numErrors := int(C.yr_compiler_add_fd(c.cptr, (C.YR_FILE_DESCRIPTOR)(file.Fd()), ns, filename))
+	if numErrors > 0 {
+		var buf [1024]C.char
+		msg := C.GoString(C.yr_compiler_get_error_message(
+			c.cptr, (*C.char)(unsafe.Pointer(&buf[0])), 1024))
+		err = errors.New(msg)
+	}
+	runtime.KeepAlive(c)
+	return
 }
 
 // AddString compiles rules from a string. Rules are added to the
@@ -140,7 +168,7 @@ func (c *Compiler) AddString(rules string, namespace string) (err error) {
 			c.cptr, (*C.char)(unsafe.Pointer(&buf[0])), 1024))
 		err = errors.New(msg)
 	}
-	keepAlive(c)
+	runtime.KeepAlive(c)
 	return
 }
 
@@ -172,7 +200,7 @@ func (c *Compiler) DefineVariable(identifier string, value interface{}) (err err
 	default:
 		err = errors.New("wrong value type passed to DefineVariable; bool, int64, float64, string are accepted")
 	}
-	keepAlive(c)
+	runtime.KeepAlive(c)
 	return
 }
 
@@ -185,10 +213,77 @@ func (c *Compiler) GetRules() (*Rules, error) {
 	if err := newError(C.yr_compiler_get_rules(c.cptr, &yrRules)); err != nil {
 		return nil, err
 	}
-	r := &Rules{rules: &rules{cptr: yrRules}}
-	runtime.SetFinalizer(r.rules, (*rules).finalize)
-	keepAlive(c)
+	r := &Rules{cptr: yrRules}
+	runtime.SetFinalizer(r, (*Rules).Destroy)
+	runtime.KeepAlive(c)
 	return r, nil
+}
+
+//export includeCallback
+func includeCallback(name, filename, namespace *C.char, userData unsafe.Pointer) *C.char {
+	callbackFunc := callbackData.Get(userData).(CompilerIncludeFunc)
+	if buf := callbackFunc(
+		C.GoString(name), C.GoString(filename), C.GoString(namespace),
+	); buf != nil {
+		ptr := C.calloc(1, C.size_t(len(buf)+1))
+		if ptr == nil {
+			return nil
+		}
+		outbuf := make([]byte, 0)
+		hdr := (*reflect.SliceHeader)(unsafe.Pointer(&outbuf))
+		hdr.Data, hdr.Len = uintptr(ptr), len(buf)+1
+		copy(outbuf, buf)
+		return (*C.char)(ptr)
+	}
+	return nil
+}
+
+//export freeCallback
+func freeCallback(callbackResultPtr *C.char, userData unsafe.Pointer) {
+	if callbackResultPtr != nil {
+		C.free(unsafe.Pointer(callbackResultPtr))
+	}
+	return
+}
+
+// CompilerIncludeFunc is used with Compiler.SetIncludeCallback.
+// Arguments are: name for the rule file to be included, filename for
+// the file that contains the include statement, namespace for the rule
+// namespace. The function returns a byte slice containing the
+// contents of the included file. It must return a nil return value on
+// error.
+//
+// See also: yr_compiler_set_include_callback in the YARA C API
+// documentation.
+type CompilerIncludeFunc func(name, filename, namespace string) []byte
+
+// SetIncludeCallback registers an include function that is called
+// (through Go glue code) by the YARA compiler for every include
+// statement.
+func (c *Compiler) SetIncludeCallback(cb CompilerIncludeFunc) {
+	if cb == nil {
+		c.DisableIncludes()
+		return
+	}
+	id := callbackData.Put(cb)
+	c.setCallbackData(id)
+	C.yr_compiler_set_include_callback(
+		c.cptr,
+		C.YR_COMPILER_INCLUDE_CALLBACK_FUNC(C.includeCallback),
+		C.YR_COMPILER_INCLUDE_FREE_FUNC(C.freeCallback),
+		id,
+	)
+	runtime.KeepAlive(c)
+	return
+}
+
+// DisableIncludes disables all include statements in the compiler.
+// See yr_compiler_set_include_callbacks.
+func (c *Compiler) DisableIncludes() {
+	C.yr_compiler_set_include_callback(c.cptr, nil, nil, nil)
+	c.setCallbackData(nil)
+	runtime.KeepAlive(c)
+	return
 }
 
 // Compile compiles rules and an (optional) set of variables into a
