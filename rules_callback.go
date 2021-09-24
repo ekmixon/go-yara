@@ -44,7 +44,7 @@ func (sc *ScanContext) GetMatchStrings(r *Rule) (matchstrings []MatchString) {
 
 // ScanCallback is a placeholder for different interfaces that may be
 // implemented by the callback object that is passed to the
-// (*Rules).Scan*WithCallback methods.
+// (*Rules).ScanXxxx and (*Scanner).ScanXxxx methods.
 type ScanCallback interface{}
 
 // ScanCallbackMatch is used to record rules that matched during a
@@ -175,13 +175,13 @@ type MatchRules []MatchRule
 
 // RuleMatching implements the ScanCallbackMatch interface for
 // MatchRules.
-func (mr *MatchRules) RuleMatching(ctx *ScanContext, r *Rule) (abort bool, err error) {
+func (mr *MatchRules) RuleMatching(sc *ScanContext, r *Rule) (abort bool, err error) {
 	*mr = append(*mr, MatchRule{
 		Rule:      r.Identifier(),
 		Namespace: r.Namespace(),
 		Tags:      r.Tags(),
 		Metas:     r.Metas(),
-		Strings:   ctx.GetMatchStrings(r),
+		Strings:   sc.GetMatchStrings(r),
 	})
 	return
 }

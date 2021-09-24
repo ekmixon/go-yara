@@ -9,8 +9,6 @@ package yara
 /*
 #include <yara.h>
 
-int scanCallbackFunc(int, void*, void*);
-
 // get_rules returns pointers to the RULE objects for a ruleset, using
 // YARA's macro-based implementation.
 static void get_rules(YR_RULES *ruleset, const YR_RULE *rules[], int *n) {
@@ -24,6 +22,7 @@ static void get_rules(YR_RULES *ruleset, const YR_RULE *rules[], int *n) {
 	*n = i;
 	return;
 }
+
 
 #ifdef _WIN32
 #include <stdint.h>
@@ -49,6 +48,7 @@ int _yr_rules_scan_fd(
 size_t streamRead(void* ptr, size_t size, size_t nmemb, void* user_data);
 size_t streamWrite(void* ptr, size_t size, size_t nmemb, void* user_data);
 
+int scanCallbackFunc(YR_SCAN_CONTEXT*, int, void*, void*);
 */
 import "C"
 import (

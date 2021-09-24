@@ -31,7 +31,6 @@ YR_RULE_PROFILING_INFO* profiling_info(YR_RULE_PROFILING_INFO* p, int n)
   return &p[n];
 }
 
-
 int scanCallbackFunc(YR_SCAN_CONTEXT*, int, void*, void*);
 */
 import "C"
@@ -242,6 +241,28 @@ func (s *Scanner) ScanProc(pid int) (err error) {
 	return
 }
 
+// ScahMemBlocks scans over a MemoryBlockIterator using the scanner.
+//
+// If no callback object has been set for the scanner using
+// SetCAllback, it is initialized with an empty MatchRules object.
+func (s *Scanner) ScanMemBlocks(mbi MemoryBlockIterator) (err error) {
+	c := makeMemoryBlockIteratorContainer(mbi)
+	defer c.free()
+	cmbi := makeCMemoryBlockIterator(c)
+	defer callbackData.Delete(cmbi.context)
+
+	cbPtr := s.putCallbackData()
+	defer callbackData.Delete(cbPtr)
+
+	C.yr_scanner_set_flags(s.cptr, s.flags.withReportFlags(s.Callback))
+	err = newError(C.yr_scanner_scan_mem_blocks(
+		s.cptr,
+		cmbi,
+	))
+	runtime.KeepAlive(s)
+	return
+}
+
 // GetLastErrorRule returns the rule that caused the last scanner error.
 func (s *Scanner) GetLastErrorRule() *Rule {
 	r := C.yr_scanner_last_error_rule(s.cptr)
@@ -282,7 +303,7 @@ func (s *Scanner) GetProfilingInfo(n int) (result []ProfilingInfo) {
 				&Rule{p.rule, s.rules},
 				uint64(p.cost)})
 	}
-	return
+	return result
 }
 
 // ResetProfilingInfo resets the profiling information accumulated by the scanner

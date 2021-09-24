@@ -72,7 +72,7 @@ func TestScannerSimpleFileDescriptorMatch(t *testing.T) {
 	if err := s.SetCallback(&m).ScanFileDescriptor(tf.Fd()); err != nil {
 		t.Errorf("ScanFileDescriptor(%v): %s", tf.Fd(), err)
 	} else if len(m) != 1 {
-		t.Errorf("ScanMem: wanted 1 match, got %d", len(m))
+		t.Errorf("ScanFileDescriptor: wanted 1 match, got %d", len(m))
 	}
 	t.Logf("Matches: %+v", m)
 }
