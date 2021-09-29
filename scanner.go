@@ -303,6 +303,7 @@ func (s *Scanner) GetProfilingInfo(n int) (result []ProfilingInfo) {
 				&Rule{p.rule, s.rules},
 				uint64(p.cost)})
 	}
+	C.yr_free(unsafe.Pointer(pi))
 	return result
 }
 
